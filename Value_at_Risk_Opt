@@ -1,0 +1,41 @@
+import numpy as np
+import pandas as pd
+import scipy.stats as sp
+import matplotlib.pyplot as plt
+import pandas_datareader as web
+import main_AsAl as pf
+
+
+def VaR(wi,df,alpha,size):
+    ret = pf.Daily_return(df)
+    r = ret.mean()
+    Prt_ret = pf.P_ret(wi, r)
+    sig = pf.Covariance_matrix(ret)
+    variance = pf.Variance(wi, sig)
+    Cdf= sp.norm.ppf(alpha,(size*(1+Prt_ret)),(np.sqrt(variance)*size))
+    Var_daily=size-Cdf
+    return Var_daily
+
+
+def Value_at_Risk(wi,Return,Sigma, alpha,size):
+    Prt_ret=pf.P_ret(wi,Return)
+    Variance = pf.Variance(wi,Sigma)
+    Cdf = sp.norm.ppf(alpha, (size * (1 + Prt_ret)), (np.sqrt(variance) * size))
+    Var_daily = size - Cdf
+    return Var_daily
+def Rgn_weight(df):
+    l=len(df.columns)
+    weight=[]
+    for i in range(1000):
+        wi = np.random.dirichlet(np.ones(l), size=1)
+        weight.append(wi)
+    return weight
+
+
+def Var_Optimization(wi,df,alpha,size):
+    wei = Rgn_weight(df)
+    x=[VaR(wi, df, alpha, size) for i in wei]
+    print(x)
+    opt = np.argmin([VaR(wi, df, alpha, size) for i in wei])
+    print(opt, wei[opt], VaR(wei[opt], df, alpha, size), "return: ", pf.P_ret(wei[opt], r))
+    return opt
