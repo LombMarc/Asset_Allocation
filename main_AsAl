@@ -42,19 +42,16 @@ def Cov(wq,wi,Sigma):
     cov=np.linalg.multi_dot((wq,Sigma,np.transpose(wi)))
     return np.asscalar(cov)
 
-def minimum_variance(target,returns, Sigma):
-    l=len(returns)
-    a=np.linalg.multi_dot((np.transpose(returns),np.linalg.inv(Sigma),returns))
-    b=np.linalg.multi_dot((np.transpose(returns),np.linalg.inv(Sigma),np.ones(len(returns))))
-    c=np.linalg.multi_dot((np.transpose(np.ones(len(returns))),np.linalg.inv(Sigma),np.ones(len(returns))))
-    det=(np.dot(a,c)-b**2)
-    I=np.matrix([[a,-b],[-b,c]])
-    w1=(1/det)*np.dot(np.linalg.inv(Sigma),(c*returns-b))*target
-    w2=(1/det)*np.dot(np.dot(np.linalg.inv(Sigma),np.ones(l)),(a-b*returns))
+def minimum_var(target,returns, Sigma):
+    l = len(returns)
+    a = np.linalg.multi_dot((np.transpose(returns), np.linalg.inv(Sigma), returns))
+    b = np.linalg.multi_dot((np.transpose(returns), np.linalg.inv(Sigma), np.ones(len(returns))))
+    c = np.linalg.multi_dot((np.transpose(np.ones(len(returns))), np.linalg.inv(Sigma), np.ones(len(returns))))
+    det = (np.dot(a, c) - b ** 2)
+    w1=np.linalg.multi_dot((np.linalg.inv(Sigma)/det,(np.dot(c,returns)-b)*target))
+    w2=np.linalg.multi_dot((np.linalg.inv(Sigma)/det,a-np.dot(b,returns)))
     w=w1+w2
-    #w=np.dot((1/det)*np.linalg.inv(Sigma),(np.dot(c,returns)-b)*target)+\
-      #np.dot((np.dot(np.linalg.inv(Sigma),np.ones(len(returns))))/det,a-b*returns)
-    print(w)
+    return w
 
 def GMVP(returns,Sigma):
     l = len(returns)
@@ -113,3 +110,18 @@ def get_data(tick:list ,start:str ,end:str ):
     for i in tick:
         dataset[i] = web.data.DataReader(i, start=start, end=end, data_source='yahoo')['Adj Close']
     return dataset
+
+def Mkt_Beta(w,Return,Sigma):  #assume Market portfolio equal tot he GMVP
+    wM=glob_min_var(Return,Sigma)[1]
+    var=Variance(w,Sigma)
+    cov=Cov(wM,w,Sigma)
+    beta=cov/var
+    return beta
+
+def mkt_cap_weigth(Capitalization:list):
+    tMktCap=sum(Capitalization)
+    MK_w=[]
+    for c in Capitalization:
+        w=c/tMktCap
+        MK_w.append(w)
+    return MK_w
