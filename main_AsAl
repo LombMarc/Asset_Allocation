@@ -1,0 +1,115 @@
+import numpy as np
+import pandas as pd
+import scipy as sp
+import matplotlib.pyplot as plt
+import pandas_datareader as web
+ret=np.array((0.1,0.15))
+sig=np.matrix('0.04 0.0168; 0.0168 0.0784 ')
+
+def Rgn_weight(df):
+    l=len(df)
+    wi = np.random.dirichlet(np.ones(l), size=1)
+    return wi
+def efficient_frontier(returns, Sigma):
+    l=len(returns)
+    R=[]
+    S=[]
+    re=[]
+    si=[]
+    for i in range(5000):
+        wi=np.random.dirichlet(np.ones(l),size=1)
+        r=np.dot(returns,np.transpose(wi))
+        s=np.linalg.multi_dot((wi,Sigma,np.transpose(wi)))
+        R.append(np.asscalar(r))
+        S.append(np.asscalar(s))
+        if i==0:
+            pass
+        elif r>R[i-1] or s<S[i-1]:
+            re.append(np.asscalar(r))
+            si.append(np.asscalar(s))
+    data=pd.DataFrame({"Return":re,"Volatilty": si})
+    plt.scatter(data["Volatilty"],data["Return"],label="Efficient frontier",marker='.',c="r")
+
+def P_ret(wi,returns):
+    r = np.dot(returns, np.transpose(wi))
+    return r
+
+def Variance(wi,Sigma):
+    s = np.linalg.multi_dot((wi, Sigma, np.transpose(wi)))
+    return np.asscalar(s)
+
+def Cov(wq,wi,Sigma):
+    cov=np.linalg.multi_dot((wq,Sigma,np.transpose(wi)))
+    return np.asscalar(cov)
+
+def minimum_variance(target,returns, Sigma):
+    l=len(returns)
+    a=np.linalg.multi_dot((np.transpose(returns),np.linalg.inv(Sigma),returns))
+    b=np.linalg.multi_dot((np.transpose(returns),np.linalg.inv(Sigma),np.ones(len(returns))))
+    c=np.linalg.multi_dot((np.transpose(np.ones(len(returns))),np.linalg.inv(Sigma),np.ones(len(returns))))
+    det=(np.dot(a,c)-b**2)
+    I=np.matrix([[a,-b],[-b,c]])
+    w1=(1/det)*np.dot(np.linalg.inv(Sigma),(c*returns-b))*target
+    w2=(1/det)*np.dot(np.dot(np.linalg.inv(Sigma),np.ones(l)),(a-b*returns))
+    w=w1+w2
+    #w=np.dot((1/det)*np.linalg.inv(Sigma),(np.dot(c,returns)-b)*target)+\
+      #np.dot((np.dot(np.linalg.inv(Sigma),np.ones(len(returns))))/det,a-b*returns)
+    print(w)
+
+def GMVP(returns,Sigma):
+    l = len(returns)
+    wi=np.dot(np.linalg.inv(Sigma),np.ones(l))/(np.linalg.multi_dot((np.ones(l),np.linalg.inv(Sigma),np.transpose(np.ones(l)))))
+    r = np.dot(returns, np.transpose(wi))
+    s = np.linalg.multi_dot((wi, Sigma, np.transpose(wi)))
+    return [s.item(),wi,r.item()]
+
+def glob_min_var(returns,Sigma):
+    l = len(returns)
+    wi=np.dot(np.linalg.inv(Sigma),np.ones(l))/(np.linalg.multi_dot((np.ones(l),np.linalg.inv(Sigma),np.transpose(np.ones(l)))))
+    r = np.dot(returns, np.transpose(wi))
+    s = np.linalg.multi_dot((wi, Sigma, np.transpose(wi)))
+    plt.scatter(np.asscalar(s), np.asscalar(r), marker="<", label="Global minimum variance portfolio")
+    return [s.item(),wi,r.item()]
+
+def CAPM_ret(Rf,w,returns,Sigma):
+    Beta=((Cov(w,glob_min_var(returns,Sigma)[1],Sigma))/(Variance(glob_min_var(returns,Sigma)[1],Sigma)))
+    R_p= Rf+Beta*((glob_min_var(returns,Sigma)[2])-Rf)
+    x=np.linspace(0.03,0.07)
+    rp=Rf+x*(glob_min_var(returns,Sigma)[2]-Rf)/(glob_min_var(returns,Sigma)[0])
+    print(R_p)
+    sharp_ratio=(glob_min_var(returns,Sigma)[2]-Rf)/(glob_min_var(returns,Sigma)[0])
+    print(sharp_ratio)
+    plt.plot(x,rp,color="r",label="Capital Market Line")
+    return R_p,sharp_ratio
+
+def APT_P(Factor,Betas,a_not):
+    R=[]
+    for i in range(len(Betas)):
+        ffi =Betas[i]*Factor
+        R.append(ffi)
+    Return= a_not+sum(R)
+    return Return
+
+def Covariance_matrix(df):
+    cov=df.cov()
+    return cov
+
+
+def Daily_return(df):
+    ret_df=df.pct_change()
+    return ret_df
+
+def Esteem_ret(df):
+    E_ret=df.mean()
+    return E_ret
+
+
+def Sharpe_ratio(Return,Volatility,risk_free):
+    SR=(Return-risk_free)/Volatility
+    return SR
+
+def get_data(tick:list ,start:str ,end:str ):
+    dataset=pd.DataFrame()
+    for i in tick:
+        dataset[i] = web.data.DataReader(i, start=start, end=end, data_source='yahoo')['Adj Close']
+    return dataset
