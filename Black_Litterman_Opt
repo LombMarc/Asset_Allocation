@@ -1,0 +1,34 @@
+import numpy as np
+import pandas as pd
+import scipy.stats as sp
+import matplotlib.pyplot as plt
+import pandas_datareader as web
+import main_AsAl as pf
+
+
+def Black_Litterman_Opt(Return,Sigma,P,init_w,risk_av,tau):
+    V=np.dot(P,np.transpose(Return))
+    w_mkt=[0.9,0.1]
+    Omega= (np.linalg.multi_dot((P,tau*sig,np.transpose(P))))
+    Omega1=np.zeros((len(ret),len(ret)))
+    np.fill_diagonal(a=Omega1,val=np.diag(Omega))
+    eq_Ret=pf.GMVP(ret,sig)[2]
+    eq_Sig=pf.GMVP(ret,sig)[0]
+    comp1= np.linalg.inv(tau*sig)+np.linalg.multi_dot((np.transpose(P),np.linalg.inv(Omega1),P))
+    BL_ret=np.linalg.multi_dot(((np.linalg.inv(comp1)),np.dot(np.linalg.inv(tau*sig),np.transpose(eq_Ret)+np.linalg.multi_dot((np.transpose(P),np.linalg.inv(Omega1),np.transpose(V))))))
+    BL_sig=np.linalg.inv(comp1)
+    BL_w=(1/risk_avr)*np.dot(np.linalg.inv(BL_sig),BL_ret)
+    Opt_w=np.array((BL_w[0].item()/sum(BL_w).item(), BL_w[1].item()/sum(BL_w).item()))
+    print(Opt_w)
+    r=(pf.P_ret(Opt_w,ret))
+    s=(pf.Variance(Opt_w,sig))
+    print("return: ", r, "Variance: ", s)
+
+    pf.efficient_frontier(ret,sig)
+    print(pf.glob_min_var(ret,sig))
+    print("Sharpe Ratio", pf.Sharpe_ratio(r,s,0.01))
+    plt.scatter(s,r,marker='o',c="y", label="Black-Litterman Optimized portfolio")
+
+#Black_Litterman_Opt(ret,sig,P,[0.9,0.1],1.1,0.05)
+#plt.legend()
+#plt.show()
