@@ -1,0 +1,86 @@
+import numpy as np
+import itertools
+
+class Bin:
+    def __init__(self,p,up,dw,r):
+        self.P_up = p
+        self.Up_move = up
+        self.Dw_move = dw
+        self.riskless = r
+
+    def EMM(self,S_0,typ,steps):
+        ''' typ can be 'add'  or 'mul' defining the kind of binomial model'''
+        if typ=='mult':
+            S_1_u = S_0*(1+self.Up_move)
+            S_1_d = S_0*(1+self.Dw_move)
+            S_1_B = S_0*(1+self.riskless)
+            self.Q =  [(S_1_B-S_1_d)/(S_1_u-S_1_d)]
+        elif typ=='add':
+            q = []
+            for i in range(steps):
+                if i ==0:
+                    S_ =S_0
+                    s = (S_ * (1 + self.riskless) - (S_ + self.Dw_move))/(self.Up_move - self.Dw_move)
+                    q.append(s)
+                else:
+                    _q ={}
+                    comb = lambda ip: [self.Up_move if i == 0 else self.Dw_move for i in ip]
+                    for Comb in itertools.combinations_with_replacement([0,1],i):
+                        S_ = S_0 + sum(comb(Comb))
+                        s = (S_ * (1 + self.riskless) - (S_ + self.Dw_move)) / (self.Up_move - self.Dw_move)
+                        Cb = str(Comb)
+                        _q[Comb] = s
+                    q.append(_q)
+            self.Q = q
+        return self.Q
+
+    def neutr(self, mov, T):
+        """mov is a tuple representing the up and down movement"""
+        q = self.Q
+        P = []
+        if mov[0] == 0:
+            P.append(q[0])
+        else:
+            P.append(1 - q[0])
+        i = 1
+        while i <= T-1:
+            if mov[i] == 0:
+                q_ca = q[i]
+                m = mov[0:i]
+                P.append(q_ca[m])
+            else:
+                q_ca = q[i]
+                m = mov[0:i]
+                P.append(1 - q_ca[m])
+            i += 1
+        return np.prod(P)
+
+    def option(self,S_0,K,T,typ):
+        self.EMM(S_0,typ,T)
+        C = []
+        P = []
+        q = []
+        if typ =='mult':
+            for comb in itertools.combinations_with_replacement([1+self.Up_move, 1+self.Dw_move], T):
+                S_ = S_0 *np.prod(comb)
+                C.append(max(S_ - K, 0))
+                P.append(max(K - S_, 0))
+            for comb in itertools.combinations_with_replacement([self.Q[0],1-self.Q[0]], T):
+                q.append(np.prod(comb))
+
+        elif typ=='add':
+            comb = lambda ip: [self.Up_move if i== 0 else self.Dw_move for i in ip]
+
+            for Comb in itertools.product([0,1],repeat=T):
+                S_ = S_0+sum(comb(Comb))
+                C.append(max(S_-K,0))
+                P.append(max(K-S_,0))
+                q.append(self.neutr(Comb,T))
+        E_c = np.dot(C,q)*(1+self.riskless)**(-T)
+        E_p = np.dot(P,q)*(1+self.riskless)**(-T)
+        return {'Call': E_c,'Put':E_p}
+        
+        
+if __name__=='__main__':
+    B = Bin(0.6,2,-1,0.05)
+    print(B.option(10,11,2,'add'))
